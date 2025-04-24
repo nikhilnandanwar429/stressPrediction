@@ -32,7 +32,7 @@ const GroupPage = () => {
       const parsedResults = JSON.parse(results);
       const memberData = parsedResults.map((result, index) => ({
         id: index + 1,
-        name: `Member ${index + 1}`,
+        name: `audio ${index + 1}`,
         stressLevel: result.stressLevel,
         audioDetails: {
           duration: result.duration,
