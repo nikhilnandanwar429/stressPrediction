@@ -5,6 +5,7 @@ import TeamPage from './pages/TeamPage';
 import Navbar from './components/Navbar';
 
 function App() {
+  
   return (
     <Router>
       <div className="min-h-screen bg-gray-100">

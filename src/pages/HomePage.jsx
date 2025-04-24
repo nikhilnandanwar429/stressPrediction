@@ -1,26 +1,59 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { processAudioFile } from '../utils/audioProcessor';
+import RecordAudio from '../components/RecordAudio';
 
 const HomePage = () => {
   const [audioFiles, setAudioFiles] = useState([]);
   const [processing, setProcessing] = useState(false);
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [isRecording, setIsRecording] = useState(false);
+  const [showPredict, setShowPredict] = useState(false);
   const navigate = useNavigate();
 
-  const handleAudioUpload = (event) => {
-    const files = Array.from(event.target.files);
-    setAudioFiles(prev => [...prev, ...files]);
+  const questions = [
+    "What was the last movie you watched?",
+    "Do you usually listen to music while working or studying?", 
+    "What's your go-to song when you're feeling down?", 
+    "What's a book you recommend everyone should read?", 
+    "What's your dream travel destination?", 
+    "What's one app you can't live without?", 
+    "What's something you've always wanted to try but haven't yet?", 
+    "If you could learn any skill instantly, what would it be?", 
+    "What's your favorite memory with your family?", 
+    "What's one thing you've learned from a family member?", 
+  ];
+
+  const handleAudioRecorded = (audioBlob) => {
+    const file = new File([audioBlob], `question_${currentQuestion + 1}.wav`, {
+      type: 'audio/wav'
+    });
+    setAudioFiles(prev => [...prev, file]);
+    
+    if (currentQuestion < questions.length - 1) {
+      setCurrentQuestion(prev => prev + 1);
+    } else {
+      setShowPredict(true);
+    }
   };
 
   const handleSubmit = async () => {
     setProcessing(true);
     try {
+      console.log("Audio Files collected:", audioFiles);
+      audioFiles.forEach((file, index) => {
+        console.log(`Audio File ${index + 1}:`, {
+          name: file.name,
+          size: file.size,
+          type: file.type
+        });
+      });
+
       const results = await Promise.all(
         audioFiles.map(file => processAudioFile(file))
       );
-      
-      // Store results in localStorage for demo purposes
-      // In a real app, you'd send this to your backend
+      console.log("Processing Results:", results);
+      localStorage.removeItem('analysisResults');
       localStorage.setItem('analysisResults', JSON.stringify(results));
       navigate('/group');
     } catch (error) {
@@ -32,62 +65,45 @@ const HomePage = () => {
   };
 
   return (
-    <div className="py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
-        <div className="bg-white shadow sm:rounded-lg p-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">Upload Audio Files</h1>
-          
-          <div className="space-y-6">
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
-              <div className="text-center">
-                <label
-                  htmlFor="audio-upload"
-                  className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-                >
-                  Upload Audio Files
-                </label>
-                <input
-                  id="audio-upload"
-                  type="file"
-                  accept="audio/*"
-                  multiple
-                  className="hidden"
-                  onChange={handleAudioUpload}
-                />
-              </div>
+    <div className="min-h-screen bg-gray-100 p-8">
+      <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
+        {!showPredict ? (
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold text-gray-800">
+              Question {currentQuestion + 1} of {questions.length}
+            </h2>
+            <p className="text-lg text-gray-700">{questions[currentQuestion]}</p>
+            <div className="space-y-4">
+              <RecordAudio 
+                onRecordingComplete={handleAudioRecorded}
+                isRecording={isRecording}
+                setIsRecording={setIsRecording}
+              />
+              <p className="text-sm text-gray-500">
+                Click the microphone to start/stop recording your answer
+              </p>
             </div>
-
-            {audioFiles.length > 0 && (
-              <div className="space-y-4">
-                <h2 className="text-xl font-semibold">Uploaded Files:</h2>
-                <ul className="space-y-2">
-                  {audioFiles.map((file, index) => (
-                    <li key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded">
-                      <span className="text-sm text-gray-600">{file.name}</span>
-                      <button
-                        onClick={() => setAudioFiles(files => files.filter((_, i) => i !== index))}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        Remove
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold text-green-600">
+              All questions answered!
+            </h2>
+            <div className="text-gray-700">
+              <p>You've recorded {audioFiles.length} responses.</p>
+            </div>
             <button
               onClick={handleSubmit}
-              disabled={audioFiles.length === 0 || processing}
-              className="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              disabled={processing}
+              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-blue-300"
             >
-              {processing ? 'Processing...' : 'Process Audio Files'}
+              {processing ? 'Processing...' : 'Predict Stress'}
             </button>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
 };
 
-export default HomePage; 
+export default HomePage;
