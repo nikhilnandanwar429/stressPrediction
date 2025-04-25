@@ -9,19 +9,20 @@ const HomePage = () => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [showPredict, setShowPredict] = useState(false);
+  const [playingIndex, setPlayingIndex] = useState(null); // for UI display
   const navigate = useNavigate();
 
   const questions = [
     "What was the last movie you watched?",
     "Do you usually listen to music while working or studying?", 
-    "What's your go-to song when you're feeling down?", 
-    "What's a book you recommend everyone should read?", 
-    "What's your dream travel destination?", 
-    "What's one app you can't live without?", 
-    "What's something you've always wanted to try but haven't yet?", 
-    "If you could learn any skill instantly, what would it be?", 
-    "What's your favorite memory with your family?", 
-    "What's one thing you've learned from a family member?", 
+    // "What's your go-to song when you're feeling down?", 
+    // "What's a book you recommend everyone should read?", 
+    // "What's your dream travel destination?", 
+    // "What's one app you can't live without?", 
+    // "What's something you've always wanted to try but haven't yet?", 
+    // "If you could learn any skill instantly, what would it be?", 
+    // "What's your favorite memory with your family?", 
+    // "What's one thing you've learned from a family member?", 
   ];
 
   const handleAudioRecorded = (audioBlob) => {
@@ -29,7 +30,7 @@ const HomePage = () => {
       type: 'audio/wav'
     });
     setAudioFiles(prev => [...prev, file]);
-    
+
     if (currentQuestion < questions.length - 1) {
       setCurrentQuestion(prev => prev + 1);
     } else {
@@ -40,18 +41,18 @@ const HomePage = () => {
   const handleSubmit = async () => {
     setProcessing(true);
     try {
-      console.log("Audio Files collected:", audioFiles);
-      audioFiles.forEach((file, index) => {
-        console.log(`Audio File ${index + 1}:`, {
-          name: file.name,
-          size: file.size,
-          type: file.type
-        });
-      });
+      // Step 1: Play audios sequentially
+      for (let i = 0; i < audioFiles.length; i++) {
+        setPlayingIndex(i);
+        await playAudio(audioFiles[i]);
+      }
 
+      // Step 2: Process audio after all are played
+      setPlayingIndex(null);
       const results = await Promise.all(
         audioFiles.map(file => processAudioFile(file))
       );
+
       console.log("Processing Results:", results);
       localStorage.removeItem('analysisResults');
       localStorage.setItem('analysisResults', JSON.stringify(results));
@@ -62,6 +63,18 @@ const HomePage = () => {
     } finally {
       setProcessing(false);
     }
+  };
+
+  const playAudio = (file) => {
+    return new Promise((resolve) => {
+      const audioUrl = URL.createObjectURL(file);
+      const audio = new Audio(audioUrl);
+      audio.play();
+      audio.onended = () => {
+        URL.revokeObjectURL(audioUrl); // Clean up
+        resolve(); // Resolve when audio ends
+      };
+    });
   };
 
   return (
@@ -91,13 +104,18 @@ const HomePage = () => {
             </h2>
             <div className="text-gray-700">
               <p>You've recorded {audioFiles.length} responses.</p>
+              {playingIndex !== null && (
+                <p className="text-blue-500">
+                  Playing audio {playingIndex + 1} of {audioFiles.length}...
+                </p>
+              )}
             </div>
             <button
               onClick={handleSubmit}
               disabled={processing}
               className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-blue-300"
             >
-              {processing ? 'Processing...' : 'Predict Stress'}
+              {processing ? (playingIndex !== null ? 'Playing Recordings...' : 'Processing...') : 'Predict Stress'}
             </button>
           </div>
         )}
