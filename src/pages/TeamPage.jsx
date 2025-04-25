@@ -44,9 +44,21 @@ const TeamPage = () => {
     {
       id: 4,
       name: "Pranav Gambhire",
-      role: "UX Designer",
+      role: "",
       // bio: "Emily focused on creating an intuitive and accessible user experience for the stress detection application, ensuring it's easy to use for all users.",
       imageUrl: "https://via.placeholder.com/400x300?text=Emily+Rodriguez"
+    }, 
+    {
+      id: 5,
+      name: "Sugat Lokhande",
+      role: "UX Designer",
+      imageUrl: "https://via.placeholder.com/400x300?text=Emily+Rodriguez"  
+    }, 
+    {
+      id: 6,
+      name: "Tushar Kohad",
+      role: "UX Designer",
+      imageUrl: "https://via.placeholder.com/400x300?text=Emily+Rodriguez"  
     }
   ];
 
