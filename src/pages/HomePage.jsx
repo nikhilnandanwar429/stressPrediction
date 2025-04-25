@@ -15,14 +15,14 @@ const HomePage = () => {
   const questions = [
     "What was the last movie you watched?",
     "Do you usually listen to music while working or studying?", 
-    // "What's your go-to song when you're feeling down?", 
-    // "What's a book you recommend everyone should read?", 
-    // "What's your dream travel destination?", 
-    // "What's one app you can't live without?", 
-    // "What's something you've always wanted to try but haven't yet?", 
-    // "If you could learn any skill instantly, what would it be?", 
-    // "What's your favorite memory with your family?", 
-    // "What's one thing you've learned from a family member?", 
+    "What's your go-to song when you're feeling down?", 
+    "What's a book you recommend everyone should read?", 
+    "What's your dream travel destination?", 
+    "What's one app you can't live without?", 
+    "What's something you've always wanted to try but haven't yet?", 
+    "If you could learn any skill instantly, what would it be?", 
+    "What's your favorite memory with your family?", 
+    "What's one thing you've learned from a family member?", 
   ];
 
   const handleAudioRecorded = (audioBlob) => {
