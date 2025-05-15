@@ -139,7 +139,7 @@ const HomePage = () => {
                 Analysis Result
               </h2>
               <p className="text-2xl font-bold text-blue-600">
-                Stress Level: {stressLevel}%
+                Stress Level: {stressLevel}
               </p>
             </div>
           )}
