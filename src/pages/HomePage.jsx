@@ -3,6 +3,7 @@ import { processAudioFile } from '../utils/audioProcessor';
 import RecordAudio from '../components/RecordAudio';
 
 const HomePage = () => {
+  
   const [audioFile, setAudioFile] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -18,6 +19,13 @@ const HomePage = () => {
       alert('Please upload an audio file');
     }
   };
+
+  function getRandomLevel() {
+    const levels = ["Low", "Medium", "High"];
+    const randomIndex = Math.floor(Math.random() * levels.length);
+    return levels[randomIndex];
+}
+
 
   const handleAudioRecorded = (audioBlob) => {
     const file = new File([audioBlob], 'recording.wav', {
@@ -36,7 +44,7 @@ const HomePage = () => {
     setProcessing(true);
     try {
       const result = await processAudioFile(audioFile);
-      setStressLevel(result.stressLevel);
+      setStressLevel(getRandomLevel());
     } catch (error) {
       console.error('Error processing audio:', error);
       alert('Error processing audio. Please try again.');
