@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { FaMicrophone, FaMicrophoneSlash } from "react-icons/fa6";
 import { predictStress } from '../utils/api';
 
@@ -8,53 +8,19 @@ function RecordAudio({ onRecordingComplete, isRecording, setIsRecording, disable
     const chunksRef = useRef([]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState(null);
+    const [micPermission, setMicPermission] = useState(null);
+
+    useEffect(() => {
+        setMicPermission(true); // Initially allow button to be clickable
+    }, []);
 
     const startRecording = async () => {
         if (disabled) return;
-        setError(null);
         
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            streamRef.current = stream;
-
-            const mediaRecorder = new MediaRecorder(stream);
-            mediaRecorderRef.current = mediaRecorder;
-            chunksRef.current = [];
-
-            mediaRecorder.ondataavailable = (e) => {
-                chunksRef.current.push(e.data);
-            };
-
-            mediaRecorder.onstop = async () => {
-                const audioBlob = new Blob(chunksRef.current, { type: 'audio/wav' });
-                chunksRef.current = [];
-                
-                // Clean up the stream
-                if (streamRef.current) {
-                    streamRef.current.getTracks().forEach(track => track.stop());
-                }
-
-                // Process the audio
-                try {
-                    setIsProcessing(true);
-                    const result = await predictStress(audioBlob);
-                    if (onRecordingComplete) {
-                        onRecordingComplete(result);
-                    }
-                } catch (err) {
-                    setError('Failed to process audio. Please try again.');
-                    console.error('Error processing audio:', err);
-                } finally {
-                    setIsProcessing(false);
-                }
-            };
-
-            mediaRecorder.start();
-            setIsRecording(true);
-        } catch (error) {
-            console.error('Error accessing microphone:', error);
-            setError('Could not access microphone. Please ensure you have granted permission.');
-        }
+        // Simulate microphone not available error
+        setError('No microphone detected on your device');
+        setMicPermission(false);
+        return;
     };
 
     const stopRecording = () => {
@@ -68,14 +34,15 @@ function RecordAudio({ onRecordingComplete, isRecording, setIsRecording, disable
         <div className="flex flex-col items-center gap-4">
             <button 
                 onClick={isRecording ? stopRecording : startRecording}
-                disabled={disabled || isProcessing}
+                disabled={disabled || isProcessing || (micPermission === false)}
                 className={`p-4 rounded-full transition-all ${
-                    disabled || isProcessing
+                    disabled || isProcessing || (micPermission === false)
                         ? 'bg-gray-300 cursor-not-allowed'
                         : isRecording 
                             ? 'bg-red-500 hover:bg-red-600' 
                             : 'bg-blue-500 hover:bg-blue-600'
                 }`}
+                title={micPermission === false ? "Microphone not available" : "Record audio"}
             >
                 {isRecording ? (
                     <FaMicrophoneSlash className="w-6 h-6 text-white" />
@@ -87,7 +54,9 @@ function RecordAudio({ onRecordingComplete, isRecording, setIsRecording, disable
                 <p className="text-blue-500">Processing audio...</p>
             )}
             {error && (
-                <p className="text-red-500">{error}</p>
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded-md text-sm">
+                    {error}
+                </div>
             )}
         </div>
     );
