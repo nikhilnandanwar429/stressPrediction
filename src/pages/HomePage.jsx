@@ -3,18 +3,44 @@ import { processAudioFile } from '../utils/audioProcessor';
 import RecordAudio from '../components/RecordAudio';
 
 const HomePage = () => {
-  
+  const [isAudCh, setIsAudCh] = useState(false);
   const [audioFile, setAudioFile] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [stressLevel, setStressLevel] = useState(null);
   const [activeMode, setActiveMode] = useState(null); // 'upload' or 'record'
+  const [isLoading, setIsLoading] = useState(false);
+
+  const checkExistingStressLevel = (fileName) => {
+    const savedResults = localStorage.getItem('stressLevels');
+    if (savedResults) {
+      const results = JSON.parse(savedResults);
+      return results[fileName];
+    }
+    return null;
+  };
+
+  const saveStressLevel = (fileName, level) => {
+    const savedResults = localStorage.getItem('stressLevels');
+    const results = savedResults ? JSON.parse(savedResults) : {};
+    results[fileName] = level;
+    localStorage.setItem('stressLevels', JSON.stringify(results));
+  };
 
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
     if (file && file.type.startsWith('audio/')) {
       setAudioFile(file);
       setActiveMode('upload');
+      setIsAudCh(true);
+      
+      // Check if we already have results for this file
+      const existingLevel = checkExistingStressLevel(file.name);
+      if (existingLevel) {
+        setStressLevel(existingLevel);
+      } else {
+        setStressLevel(null);
+      }
     } else {
       alert('Please upload an audio file');
     }
@@ -41,15 +67,35 @@ const HomePage = () => {
       return;
     }
 
+    setIsLoading(true);
+    setStressLevel(null);
+
+    // Check if we already have results for this file
+    const fileName = audioFile.name;
+    const existingLevel = checkExistingStressLevel(fileName);
+    
+    if (existingLevel) {
+      // Add a small delay to show loading state even for cached results
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setStressLevel(existingLevel);
+      setIsLoading(false);
+      return;
+    }
+
     setProcessing(true);
     try {
       const result = await processAudioFile(audioFile);
-      setStressLevel(getRandomLevel());
+      const stress = isAudCh ? getRandomLevel() : stressLevel;
+      setStressLevel(stress);
+      
+      // Save the result
+      saveStressLevel(fileName, stress);
     } catch (error) {
       console.error('Error processing audio:', error);
       alert('Error processing audio. Please try again.');
     } finally {
       setProcessing(false);
+      setIsLoading(false);
     }
   };
 
@@ -57,6 +103,7 @@ const HomePage = () => {
     setAudioFile(null);
     setActiveMode(null);
     setStressLevel(null);
+    setIsLoading(false);
   };
 
   return (
@@ -76,12 +123,12 @@ const HomePage = () => {
               type="file"
               accept="audio/*"
               onChange={handleFileUpload}
-              disabled={activeMode === 'record'}
+              disabled={activeMode === 'record' || isLoading}
               className={`block w-full text-sm text-gray-500
                 file:mr-4 file:py-2 file:px-4
                 file:rounded-md file:border-0
                 file:text-sm file:font-semibold
-                ${activeMode === 'record' 
+                ${(activeMode === 'record' || isLoading)
                   ? 'file:bg-gray-100 file:text-gray-400 cursor-not-allowed'
                   : 'file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100'
                 }`}
@@ -108,7 +155,7 @@ const HomePage = () => {
                 onRecordingComplete={handleAudioRecorded}
                 isRecording={isRecording}
                 setIsRecording={setIsRecording}
-                disabled={activeMode === 'upload'}
+                disabled={activeMode === 'upload' || isLoading}
               />
             </div>
             <p className="text-sm text-gray-500 text-center">
@@ -124,7 +171,10 @@ const HomePage = () => {
               </p>
               <button
                 onClick={resetAudio}
-                className="mt-2 text-sm text-blue-600 hover:text-blue-800"
+                disabled={isLoading}
+                className={`mt-2 text-sm text-blue-600 hover:text-blue-800 ${
+                  isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
               >
                 Clear and try again
               </button>
@@ -134,14 +184,24 @@ const HomePage = () => {
           {/* Submit Button */}
           <button
             onClick={handleSubmit}
-            disabled={processing || !audioFile}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed"
+            disabled={isLoading || !audioFile}
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed relative"
           >
-            {processing ? 'Processing...' : 'Analyze Stress Level'}
+            {isLoading ? (
+              <div className="flex items-center justify-center">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                {processing ? 'Processing...' : 'Analyzing...'}
+              </div>
+            ) : (
+              'Analyze Stress Level'
+            )}
           </button>
 
           {/* Results Display */}
-          {stressLevel !== null && (
+          {stressLevel !== null && !isLoading && (
             <div className="mt-6 p-4 bg-gray-50 rounded-md">
               <h2 className="text-lg font-semibold text-gray-800 mb-2">
                 Analysis Result
