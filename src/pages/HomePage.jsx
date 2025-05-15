@@ -1,124 +1,149 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { processAudioFile } from '../utils/audioProcessor';
 import RecordAudio from '../components/RecordAudio';
 
 const HomePage = () => {
-  const [audioFiles, setAudioFiles] = useState([]);
+  const [audioFile, setAudioFile] = useState(null);
   const [processing, setProcessing] = useState(false);
-  const [currentQuestion, setCurrentQuestion] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
-  const [showPredict, setShowPredict] = useState(false);
-  const [playingIndex, setPlayingIndex] = useState(null); // for UI display
-  const navigate = useNavigate();
+  const [stressLevel, setStressLevel] = useState(null);
+  const [activeMode, setActiveMode] = useState(null); // 'upload' or 'record'
 
-  const questions = [
-    "What was the last movie you watched?",
-    "Do you usually listen to music while working or studying?", 
-    "What's your go-to song when you're feeling down?", 
-    "What's a book you recommend everyone should read?", 
-    "What's your dream travel destination?", 
-    "What's one app you can't live without?", 
-    "What's something you've always wanted to try but haven't yet?", 
-    "If you could learn any skill instantly, what would it be?", 
-    "What's your favorite memory with your family?", 
-    "What's one thing you've learned from a family member?", 
-  ];
-
-  const handleAudioRecorded = (audioBlob) => {
-    const file = new File([audioBlob], `question_${currentQuestion + 1}.wav`, {
-      type: 'audio/wav'
-    });
-    setAudioFiles(prev => [...prev, file]);
-
-    if (currentQuestion < questions.length - 1) {
-      setCurrentQuestion(prev => prev + 1);
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (file && file.type.startsWith('audio/')) {
+      setAudioFile(file);
+      setActiveMode('upload');
     } else {
-      setShowPredict(true);
+      alert('Please upload an audio file');
     }
   };
 
+  const handleAudioRecorded = (audioBlob) => {
+    const file = new File([audioBlob], 'recording.wav', {
+      type: 'audio/wav'
+    });
+    setAudioFile(file);
+    setActiveMode('record');
+  };
+
   const handleSubmit = async () => {
+    if (!audioFile) {
+      alert('Please upload or record an audio file first');
+      return;
+    }
+
     setProcessing(true);
     try {
-      // Step 1: Play audios sequentially
-      for (let i = 0; i < audioFiles.length; i++) {
-        setPlayingIndex(i);
-        await playAudio(audioFiles[i]);
-      }
-
-      // Step 2: Process audio after all are played
-      setPlayingIndex(null);
-      const results = await Promise.all(
-        audioFiles.map(file => processAudioFile(file))
-      );
-
-      console.log("Processing Results:", results);
-      localStorage.removeItem('analysisResults');
-      localStorage.setItem('analysisResults', JSON.stringify(results));
-      navigate('/group');
+      const result = await processAudioFile(audioFile);
+      setStressLevel(result.stressLevel);
     } catch (error) {
-      console.error('Error processing audio files:', error);
-      alert('Error processing audio files. Please try again.');
+      console.error('Error processing audio:', error);
+      alert('Error processing audio. Please try again.');
     } finally {
       setProcessing(false);
     }
   };
 
-  const playAudio = (file) => {
-    return new Promise((resolve) => {
-      const audioUrl = URL.createObjectURL(file);
-      const audio = new Audio(audioUrl);
-      audio.play();
-      audio.onended = () => {
-        URL.revokeObjectURL(audioUrl); // Clean up
-        resolve(); // Resolve when audio ends
-      };
-    });
+  const resetAudio = () => {
+    setAudioFile(null);
+    setActiveMode(null);
+    setStressLevel(null);
   };
 
   return (
     <div className="min-h-screen bg-gray-100 p-8">
       <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
-        {!showPredict ? (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-gray-800">
-              Question {currentQuestion + 1} of {questions.length}
-            </h2>
-            <p className="text-lg text-gray-700">{questions[currentQuestion]}</p>
-            <div className="space-y-4">
-              <RecordAudio 
+        <h1 className="text-2xl font-bold text-gray-800 mb-6 text-center">
+          Stress Level Detection
+        </h1>
+
+        <div className="space-y-6">
+          {/* File Upload Section */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Upload Audio File
+            </label>
+            <input
+              type="file"
+              accept="audio/*"
+              onChange={handleFileUpload}
+              disabled={activeMode === 'record'}
+              className={`block w-full text-sm text-gray-500
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-md file:border-0
+                file:text-sm file:font-semibold
+                ${activeMode === 'record' 
+                  ? 'file:bg-gray-100 file:text-gray-400 cursor-not-allowed'
+                  : 'file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100'
+                }`}
+            />
+          </div>
+
+          {/* Divider */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">OR</span>
+            </div>
+          </div>
+
+          {/* Recording Section */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Record Audio
+            </label>
+            <div className="flex justify-center">
+              <RecordAudio
                 onRecordingComplete={handleAudioRecorded}
                 isRecording={isRecording}
                 setIsRecording={setIsRecording}
+                disabled={activeMode === 'upload'}
               />
-              <p className="text-sm text-gray-500">
-                Click the microphone to start/stop recording your answer
+            </div>
+            <p className="text-sm text-gray-500 text-center">
+              Click the microphone to start/stop recording
+            </p>
+          </div>
+
+          {/* Current Audio Status */}
+          {audioFile && (
+            <div className="p-4 bg-blue-50 rounded-md">
+              <p className="text-sm text-blue-700">
+                {activeMode === 'upload' ? 'Audio file uploaded' : 'Audio recorded'}
+              </p>
+              <button
+                onClick={resetAudio}
+                className="mt-2 text-sm text-blue-600 hover:text-blue-800"
+              >
+                Clear and try again
+              </button>
+            </div>
+          )}
+
+          {/* Submit Button */}
+          <button
+            onClick={handleSubmit}
+            disabled={processing || !audioFile}
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed"
+          >
+            {processing ? 'Processing...' : 'Analyze Stress Level'}
+          </button>
+
+          {/* Results Display */}
+          {stressLevel !== null && (
+            <div className="mt-6 p-4 bg-gray-50 rounded-md">
+              <h2 className="text-lg font-semibold text-gray-800 mb-2">
+                Analysis Result
+              </h2>
+              <p className="text-2xl font-bold text-blue-600">
+                Stress Level: {stressLevel}%
               </p>
             </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-green-600">
-              All questions answered!
-            </h2>
-            <div className="text-gray-700">
-              <p>You've recorded {audioFiles.length} responses.</p>
-              {playingIndex !== null && (
-                <p className="text-blue-500">
-                  Playing audio {playingIndex + 1} of {audioFiles.length}...
-                </p>
-              )}
-            </div>
-            <button
-              onClick={handleSubmit}
-              disabled={processing}
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-blue-300"
-            >
-              {processing ? (playingIndex !== null ? 'Playing Recordings...' : 'Processing...') : 'Predict Stress'}
-            </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

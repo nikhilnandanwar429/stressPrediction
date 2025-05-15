@@ -1,12 +1,18 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { FaMicrophone, FaMicrophoneSlash } from "react-icons/fa6";
+import { predictStress } from '../utils/api';
 
-function RecordAudio({ onRecordingComplete, isRecording, setIsRecording }) {
+function RecordAudio({ onRecordingComplete, isRecording, setIsRecording, disabled }) {
     const mediaRecorderRef = useRef(null);
     const streamRef = useRef(null);
     const chunksRef = useRef([]);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [error, setError] = useState(null);
 
     const startRecording = async () => {
+        if (disabled) return;
+        setError(null);
+        
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             streamRef.current = stream;
@@ -19,16 +25,27 @@ function RecordAudio({ onRecordingComplete, isRecording, setIsRecording }) {
                 chunksRef.current.push(e.data);
             };
 
-            mediaRecorder.onstop = () => {
+            mediaRecorder.onstop = async () => {
                 const audioBlob = new Blob(chunksRef.current, { type: 'audio/wav' });
-                if (onRecordingComplete) {
-                    onRecordingComplete(audioBlob);
-                }
                 chunksRef.current = [];
                 
                 // Clean up the stream
                 if (streamRef.current) {
                     streamRef.current.getTracks().forEach(track => track.stop());
+                }
+
+                // Process the audio
+                try {
+                    setIsProcessing(true);
+                    const result = await predictStress(audioBlob);
+                    if (onRecordingComplete) {
+                        onRecordingComplete(result);
+                    }
+                } catch (err) {
+                    setError('Failed to process audio. Please try again.');
+                    console.error('Error processing audio:', err);
+                } finally {
+                    setIsProcessing(false);
                 }
             };
 
@@ -36,7 +53,7 @@ function RecordAudio({ onRecordingComplete, isRecording, setIsRecording }) {
             setIsRecording(true);
         } catch (error) {
             console.error('Error accessing microphone:', error);
-            alert('Could not access microphone. Please ensure you have granted permission.');
+            setError('Could not access microphone. Please ensure you have granted permission.');
         }
     };
 
@@ -48,13 +65,16 @@ function RecordAudio({ onRecordingComplete, isRecording, setIsRecording }) {
     };
 
     return (
-        <div className="flex justify-center">
+        <div className="flex flex-col items-center gap-4">
             <button 
                 onClick={isRecording ? stopRecording : startRecording}
+                disabled={disabled || isProcessing}
                 className={`p-4 rounded-full transition-all ${
-                    isRecording 
-                        ? 'bg-red-500 hover:bg-red-600' 
-                        : 'bg-blue-500 hover:bg-blue-600'
+                    disabled || isProcessing
+                        ? 'bg-gray-300 cursor-not-allowed'
+                        : isRecording 
+                            ? 'bg-red-500 hover:bg-red-600' 
+                            : 'bg-blue-500 hover:bg-blue-600'
                 }`}
             >
                 {isRecording ? (
@@ -63,6 +83,12 @@ function RecordAudio({ onRecordingComplete, isRecording, setIsRecording }) {
                     <FaMicrophone className="w-6 h-6 text-white" />
                 )}
             </button>
+            {isProcessing && (
+                <p className="text-blue-500">Processing audio...</p>
+            )}
+            {error && (
+                <p className="text-red-500">{error}</p>
+            )}
         </div>
     );
 }

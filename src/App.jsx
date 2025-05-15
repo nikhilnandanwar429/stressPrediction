@@ -1,6 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import HomePage from './pages/HomePage';
-import GroupPage from './pages/GroupPage';
 import TeamPage from './pages/TeamPage';
 import Navbar from './components/Navbar';
 
@@ -13,7 +12,6 @@ function App() {
         <main>
           <Routes>
             <Route path="/" element={<HomePage />} />
-            <Route path="/group" element={<GroupPage />} />
             {/* <Route path="/team" element={<TeamPage />} /> */}
           </Routes>
         </main>

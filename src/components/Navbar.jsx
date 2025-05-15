@@ -27,7 +27,7 @@ const Navbar = () => {
               >
                 Home
               </Link>
-              <Link
+              {/* <Link
                 to="/group"
                 className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
                   isActive('/group')
@@ -36,7 +36,7 @@ const Navbar = () => {
                 }`}
               >
                 Group Analysis
-              </Link>
+              </Link> */}
               {/* <Link
                 to="/team"
                 className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
