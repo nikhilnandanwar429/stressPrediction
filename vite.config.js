@@ -8,7 +8,7 @@ export default defineConfig({
   server: {
     port: 5174,
     proxy: {
-      '/api': {
+      '/predict': {
         target: 'https://stresspredictionbackend.onrender.com',
         changeOrigin: true,
         secure: false,
