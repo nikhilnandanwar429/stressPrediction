@@ -12,7 +12,7 @@ export const predictStress = async (audioBlob) => {
                 'Content-Type': 'multipart/form-data',
             },
         });
-        console.log(response);
+        // console.log(response);
         
         return response.data;
     } catch (error) {

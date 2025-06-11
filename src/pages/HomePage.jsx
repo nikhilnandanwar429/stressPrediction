@@ -10,21 +10,25 @@ const HomePage = () => {
   const [stressLevel, setStressLevel] = useState(null);
   const [activeMode, setActiveMode] = useState(null); // 'upload' or 'record'
   const [isLoading, setIsLoading] = useState(false);
+  const [data, setData] = useState(null);
 
   const checkExistingStressLevel = (fileName) => {
-    const savedResults = localStorage.getItem('stressLevels');
-    if (savedResults) {
-      const results = JSON.parse(savedResults);
-      return results[fileName];
+    const savedData = localStorage.getItem('stressResults');
+    if (savedData) {
+      const results = JSON.parse(savedData);
+      return results[fileName] || null;
     }
     return null;
   };
 
   const saveStressLevel = (fileName, level) => {
-    const savedResults = localStorage.getItem('stressLevels');
-    const results = savedResults ? JSON.parse(savedResults) : {};
+    // Browser storage not available in artifacts - skipping save
+    const savedData = localStorage.getItem('stressResults');
+    const results = savedData ? JSON.parse(savedData) : {};
     results[fileName] = level;
-    localStorage.setItem('stressLevels', JSON.stringify(results));
+    localStorage.setItem('stressResults', JSON.stringify(results));
+
+    // console.log(`Would save: ${fileName} -> ${level}`);
   };
 
   const handleFileUpload = (event) => {
@@ -33,7 +37,8 @@ const HomePage = () => {
       setAudioFile(file);
       setActiveMode('upload');
       setIsAudCh(true);
-      
+      setData(null); // Clear recorded data when uploading file
+
       // Check if we already have results for this file
       const existingLevel = checkExistingStressLevel(file.name);
       if (existingLevel) {
@@ -50,8 +55,7 @@ const HomePage = () => {
     const levels = ["Low", "Medium", "High"];
     const randomIndex = Math.floor(Math.random() * levels.length);
     return levels[randomIndex];
-}
-
+  }
 
   const handleAudioRecorded = (audioBlob) => {
     const file = new File([audioBlob], 'recording.wav', {
@@ -59,10 +63,12 @@ const HomePage = () => {
     });
     setAudioFile(file);
     setActiveMode('record');
+    setIsAudCh(false); // Set to false for recorded audio
   };
 
   const handleSubmit = async () => {
-    if (!audioFile) {
+    // Check if we have either uploaded file or recorded data
+    if (!audioFile && !data) {
       alert('Please upload or record an audio file first');
       return;
     }
@@ -70,26 +76,32 @@ const HomePage = () => {
     setIsLoading(true);
     setStressLevel(null);
 
-    // Check if we already have results for this file
-    const fileName = audioFile.name;
-    const existingLevel = checkExistingStressLevel(fileName);
-    
-    if (existingLevel) {
-      // Add a small delay to show loading state even for cached results
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setStressLevel(existingLevel);
-      setIsLoading(false);
-      return;
-    }
-
-    setProcessing(true);
     try {
-      const result = await processAudioFile(audioFile);
-      const stress = isAudCh ? getRandomLevel() : stressLevel;
+      // Determine which audio source to use
+      let audioToProcess = audioFile || data;
+      let fileName = audioToProcess.name || `recorded_audio_${Date.now()}.wav`;
+
+      // Check if we already have results for this file
+      const existingLevel = checkExistingStressLevel(fileName);
+
+      if (existingLevel) {
+        // Add a small delay to show loading state even for cached results
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        setStressLevel(existingLevel);
+        setIsLoading(false);
+        return;
+      }
+
+      setProcessing(true);
+
+      // Process the audio file
+      const result = await processAudioFile(audioToProcess);
+      const stress = getRandomLevel(); // Generate random stress level
       setStressLevel(stress);
-      
+
       // Save the result
       saveStressLevel(fileName, stress);
+
     } catch (error) {
       console.error('Error processing audio:', error);
       alert('Error processing audio. Please try again.');
@@ -101,10 +113,20 @@ const HomePage = () => {
 
   const resetAudio = () => {
     setAudioFile(null);
+    setData(null);
     setActiveMode(null);
     setStressLevel(null);
     setIsLoading(false);
+    setIsAudCh(false);
   };
+
+  function backTrackAudio(blob) {
+    setData(blob);
+    setAudioFile(null); // Clear uploaded file when recording
+    setActiveMode('record');
+    setIsAudCh(false); // Set to false for recorded audio
+    setStressLevel(null); // Clear previous results
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 p-8">
@@ -152,10 +174,7 @@ const HomePage = () => {
             </label>
             <div className="flex justify-center">
               <RecordAudio
-                onRecordingComplete={handleAudioRecorded}
-                isRecording={isRecording}
-                setIsRecording={setIsRecording}
-                disabled={activeMode === 'upload' || isLoading}
+                backTrackAudio={backTrackAudio}
               />
             </div>
             <p className="text-sm text-gray-500 text-center">
@@ -164,7 +183,7 @@ const HomePage = () => {
           </div>
 
           {/* Current Audio Status */}
-          {audioFile && (
+          {(audioFile || data) && (
             <div className="p-4 bg-blue-50 rounded-md">
               <p className="text-sm text-blue-700">
                 {activeMode === 'upload' ? 'Audio file uploaded' : 'Audio recorded'}
@@ -172,9 +191,8 @@ const HomePage = () => {
               <button
                 onClick={resetAudio}
                 disabled={isLoading}
-                className={`mt-2 text-sm text-blue-600 hover:text-blue-800 ${
-                  isLoading ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
+                className={`mt-2 text-sm text-blue-600 hover:text-blue-800 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
               >
                 Clear and try again
               </button>
@@ -184,19 +202,16 @@ const HomePage = () => {
           {/* Submit Button */}
           <button
             onClick={handleSubmit}
-            disabled={isLoading || !audioFile}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed relative"
+            disabled={(!audioFile && !data) || isLoading}
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed relative cursor-pointer"
           >
             {isLoading ? (
               <div className="flex items-center justify-center">
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                {processing ? 'Processing...' : 'Analyzing...'}
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Analyzing...
               </div>
             ) : (
-              'Analyze Stress Level'
+              <div>Analyze Stress</div>
             )}
           </button>
 

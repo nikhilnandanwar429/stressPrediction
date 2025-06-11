@@ -8,6 +8,7 @@ export const processAudioFile = async (file) => {
       try {
         // Validate file type and size
         if (!file.type.startsWith('audio/')) {
+          // console.log('Invalid file type:', file.type);
           throw new Error('Invalid file type. Please upload an audio file.');
         }
 
@@ -18,17 +19,19 @@ export const processAudioFile = async (file) => {
         // Create form data to send the audio file
         const formData = new FormData();
         formData.append('audio', file);
+        // console.log("formData", formData);
 
-        console.log('Sending audio file to backend...');
-        console.log('File type:', file.type);
-        console.log('File size:', file.size);
+        // console.log('Sending audio file to backend...');
+        // console.log('File type:', file.type);
+        // console.log('File size:', file.size);
 
         // Send the audio file to the backend with retry logic
-        let retries = 3;
+        
         let lastError = null;
 
-        while (retries > 0) {
+        
           try {
+            // console.log("audioPro",  formData);
             const response = await fetch(`${API_URL}${ENDPOINTS.predict}`, {
               method: 'POST',
               body: formData,
@@ -37,16 +40,22 @@ export const processAudioFile = async (file) => {
               },
             });
 
-            console.log('Response status:', response.status);
-
             if (!response.ok) {
               const errorText = await response.text();
               console.error('Error response:', errorText);
               throw new Error(errorText || 'Failed to analyze audio');
             }
 
+            // console.log('Response status:', response.status);
+
+            // if (!response.ok) {
+            //   const errorText = await response.text();
+            //   console.error('Error response:', errorText);
+            //   throw new Error(errorText || 'Failed to analyze audio');
+            // }
+
             const result = await response.json();
-            console.log('Response data:', result);
+            // console.log('Response data:', result);
             
             // Map the prediction to stress levels
             const stressLevels = ['Low', 'Medium', 'High'];
@@ -54,7 +63,7 @@ export const processAudioFile = async (file) => {
             
             resolve({
               stressLevel,
-              confidence: Math.max(...result.prediction_probabilities) * 100,
+            
               date: new Date().toISOString().split('T')[0]
             });
             return; // Success, exit the retry loop
@@ -67,7 +76,7 @@ export const processAudioFile = async (file) => {
               await new Promise(resolve => setTimeout(resolve, 1000));
             }
           }
-        }
+        
         
         // If we get here, all retries failed
         throw lastError || new Error('Failed to process audio after multiple attempts');
