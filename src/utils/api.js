@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://stresspredictionbackend.onrender.com'; // Backend URL
+const API_BASE_URL = 'http://127.0.0.1:5000'; // Backend URL
 
 export const predictStress = async (audioBlob) => {
     try {
